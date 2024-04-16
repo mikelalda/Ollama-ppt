@@ -20,6 +20,7 @@ Create a virtual env by running this command
 ```shell
 python -m venv .venv\ppt
 .venv\ppt\Scripts\activate.bat
+pip install -r requirements.txt
 ```
 
 ### Running the app
