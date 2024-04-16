@@ -1,0 +1,10 @@
+torch
+transformers
+safetensors
+accelerate
+bitsandbytes
+python-pptx
+PyPDF2
+gradio
+langchain
+langchain-community
