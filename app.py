@@ -37,7 +37,7 @@ if not torch.cuda.is_available():
     DESCRIPTION += "\n<p>Running on CPU 🥶 This demo does not work on CPU.</p>"
 
 
-pipe = Ollama(model="llama2")
+pipe = Ollama(model="phi-ppt")
 
 def filter_custom(choice):
     if choice == "custom":
@@ -57,17 +57,24 @@ def filter_input(choice):
 
 def generate_text2ppt_input_prompt(input_type, input_value, input_pages):
     header = """
-    Assume you are a designer creating a PPT using markdown syntax, and write a PPT of %s pages.
-    +++ Summarize the content or link below in markdown language, adhering to the rules in --- and refer to the slide examples in ~~~.
+    Write a PPT of %s pages about:
     +++
     """ % input_pages
 
     summary_value = ""
 
     if input_type == "Text":
+        header = """
+        Write a PPT of %s pages about:
+        +++
+        """ % input_pages
         summary_value += input_value
         summary_value += "\n"
     elif input_type == "PDF":
+        header = """
+        Write a PPT of %s pages about this text:
+        +++
+        """ % input_pages
         with open(input_value, 'rb') as pdf_file:
             pdf_reader = PyPDF2.PdfReader(pdf_file)
             num_pages = len(pdf_reader.pages)
@@ -82,27 +89,8 @@ def generate_text2ppt_input_prompt(input_type, input_value, input_pages):
     else:
         print("ERROR: Invalid input")
 
-    rule_value = """
-    ---
-    - Always use '===' as a slide divider.
-    - Write factually only about the content or link provided.
-    - Design and arrange the slides diversely with appropriate shapes, tables(|-|), quotes(>), emphasis(bold, ``), emojis(https://kr.piliapp.com/twitter-symbols/), icons (https://kr.piliapp.com/symbol/#popular).
-    - Use emojis only once in every page, and use various other designs.
-    - When using images and tables, specify the size considering the page size so that all the text content appears.
-    - Make Slide 1 the title, for a total of %s pages.
-    - Write the content of the PPT richly in markdown.
-    - Don't explain slide by slide, just write the code.
-    - Don't write using the content of the example, just refer to the format.
-    ---
-    ~~~
-    <!-- Slide 0. Slide Topic -->
-    # Slide Title
-    - This is 🤗**TEXT2PPT service PA!** using llama2.
-    - Converts `text`, `PDF` input or upload into PPT. 
-    ~~~
-    """ % input_pages
 
-    return header + summary_value + rule_value
+    return header + summary_value
 def find_images(search_query,num_results):
     # Construct the Google Images search URL
     search_url = f'https://www.google.com/search?q={search_query}&source=lnms&tbm=isch'
