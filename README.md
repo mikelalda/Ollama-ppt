@@ -49,7 +49,7 @@ Then pull any mnodel:
 Then customize de model
 
 ```shell
-ollama create phi-ppt -f ./Modelfile
+ollama create ppt -f ./Modelfile
 ```
 
 ### Running the app

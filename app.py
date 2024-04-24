@@ -37,7 +37,7 @@ if not torch.cuda.is_available():
     DESCRIPTION += "\n<p>Running on CPU 🥶 This demo does not work on CPU.</p>"
 
 
-pipe = Ollama(model="phi-ppt")
+pipe = Ollama(model="ppt")
 
 def filter_custom(choice):
     if choice == "custom":
