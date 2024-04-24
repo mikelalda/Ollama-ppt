@@ -23,6 +23,17 @@ python -m venv .venv\ppt
 pip install -r requirements.txt
 ```
 
+### Install ollama and run model
+
+[ollama](https://ollama.com/https:/) instalation from here.
+
+Then pull phi3 and customize de model
+
+```shell
+ollama pull phi3
+ollama create phi-ppt -f ./Modelfile
+```
+
 ### Running the app
 
 Finally execute de app by running this script.
