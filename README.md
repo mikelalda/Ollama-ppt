@@ -27,6 +27,25 @@ pip install -r requirements.txt
 
 [ollama](https://ollama.com/https:/) instalation from here.
 
+Ollama supports a list of models available on [ollama.com/library](https://ollama.com/library 'ollama model library')
+
+Here are some example models that can be downloaded:
+
+| Model              | Parameters | Size  | Download                       |
+| ------------------ | ---------- | ----- | ------------------------------ |
+| Llama 3            | 8B         | 4.7GB | `ollama run llama3`            |
+| Llama 3            | 70B        | 40GB  | `ollama run llama3:70b`        |
+| Phi-3              | 3,8B       | 2.3GB | `ollama run phi3`              |
+| Mistral            | 7B         | 4.1GB | `ollama run mistral`           |
+| Neural Chat        | 7B         | 4.1GB | `ollama run neural-chat`       |
+| Starling           | 7B         | 4.1GB | `ollama run starling-lm`       |
+| Code Llama         | 7B         | 3.8GB | `ollama run codellama`         |
+| Llama 2 Uncensored | 7B         | 3.8GB | `ollama run llama2-uncensored` |
+| LLaVA              | 7B         | 4.5GB | `ollama run llava`             |
+| Gemma              | 2B         | 1.4GB | `ollama run gemma:2b`          |
+| Gemma              | 7B         | 4.8GB | `ollama run gemma:7b`          |
+| Solar              | 10.7B      | 6.1GB | `ollama run solar`             |
+
 Then pull phi3 and customize de model
 
 ```shell
