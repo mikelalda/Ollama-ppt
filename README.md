@@ -1,6 +1,7 @@
 # PPT CREATOR
 
 This is a ppt creator chat. It will open a web application for ppt creation.
+PPT Creator Ollama_→ Phi3 or llama3
 
 ## PREPARATION
 
@@ -27,12 +28,13 @@ pip install -r requirements.txt
 
 [ollama](https://ollama.com/https:/) instalation from here.
 
-Ollama supports a list of models available on [ollama.com/library](https://ollama.com/library 'ollama model library')
+Ollama supports a list of models available on [ollama.com/library](https://ollama.com/library "ollama model library")
 
 Then pull any mnodel:
 
-| Model              | Parameters | Size  | Download                       |
-| ------------------ | ---------- | ----- | ------------------------------ |
+
+| Model              | Parameters | Size  | Download                        |
+| -------------------- | ------------ | ------- | --------------------------------- |
 | Llama 3            | 8B         | 4.7GB | `ollama pull llama3`            |
 | Llama 3            | 70B        | 40GB  | `ollama pull llama3:70b`        |
 | Phi-3              | 3,8B       | 2.3GB | `ollama pull phi3`              |
@@ -59,3 +61,12 @@ Finally execute de app by running this script.
 ```shell
 python app.py
 ```
+
+## TODO
+
+* [ ] Busqueda imagen → Web + ImageBird
+* [ ] Creacion de ppt →
+  * [X] Crear en base al 1
+  * [X] Crear con RAG
+  * [ ] Crear con metodo STORM
+* [ ] Corregir cambios entre RAG y tema
