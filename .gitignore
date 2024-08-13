@@ -1,3 +1,5 @@
-*input.md
-*output.pptx
+/images
+/generated
+/.venv
+/__pycache__
 pandoc*

@@ -9,3 +9,8 @@ gradio
 langchain
 langchain-community
 ollama
+unstructured[all-docs]
+pdf2image
+pytesseract
+flask-sqlalchemy 
+chromadb

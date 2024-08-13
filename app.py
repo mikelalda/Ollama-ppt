@@ -1,23 +1,19 @@
 import gradio as gr
-from pptx import Presentation
-import subprocess
-import io
-from io import BytesIO
-import PyPDF2
-import os
-import subprocess
+import json
 import requests
 from bs4 import BeautifulSoup
-import os
 from langchain_community.llms import Ollama
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema.runnable import RunnablePassthrough
 from langchain_community.vectorstores import Chroma
-from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader, TextLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter, CharacterTextSplitter
+from langchain_community.document_loaders import WebBaseLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
-from langchain.vectorstores.utils import filter_complex_metadata
 from langchain_community.embeddings.ollama import OllamaEmbeddings
+from langchain.retrievers.multi_query import MultiQueryRetriever
+from langchain.prompts import ChatPromptTemplate, PromptTemplate
+from langchain_community.document_loaders import UnstructuredPDFLoader
+from slide_deck import SlideDeck
 
 
 DESCRIPTION = """\
@@ -31,23 +27,23 @@ As a derivate work of [Ollama](https://ollama.com) and [llama3](https://huggingf
 this demo is governed by the original [license](https://github.com/ollama/ollama?tab=MIT-1-ov-file) and [license](https://huggingface.co/meta-llama/Meta-Llama-3-8B/blob/main/LICENSE.txt).
 """
 
-model="ppt"
-pipe = Ollama(model=model)
-embeddings = OllamaEmbeddings(model="nomic-embed-text")
+QUERY_PROMPT = PromptTemplate(
+    template="""
+    Eres un asistente de modelo de lenguaje de IA que crea PPTs.
+    """,
+)
 
-prompt = PromptTemplate.from_template(
-            """ 
-            Contexto: {context} 
-            Pregunta: {question}
-            """
-        )
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=80, length_function=len, is_separator_regex=False,)
+model = Ollama(model='ppt')
+pipe = Ollama(model='llama3.1')
+embeddings = OllamaEmbeddings(model="mxbai-embed-large",show_progress=True)
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=7500, chunk_overlap=100)
+vectorstore = None
 
 def filter_custom(choice):
     if choice == "custom":
-        ppt_file = gr.File(type="filepath", label="Upload PDF", visible=True)
+        ppt_file = gr.File(type="filepath", label="Upload PPT", visible=True)
     else:
-        ppt_file = gr.File(type="filepath", label="Upload PDF", visible=False)
+        ppt_file = gr.File(type="filepath", label="Upload PPT", visible=False)
     return ppt_file
 def filter_input(choice):
     if choice == "Text":
@@ -65,38 +61,30 @@ def filter_input(choice):
 
     return input_text, pdf_file, input_url
 
-def generate_text2ppt_input_prompt(input_type, input_value, input_pages):
-    header = """Realizaz un PPt de %s paginas sobre el contexto. Intenta filtrar las cosas interesantes utilizando solamente el contexto.""" % input_pages
+def generate_text2ppt_input_prompt(input_type, input_value):
+    global vectorstore
     if input_type == "Text":
-        with open('./file.txt', 'w') as f:
-            f.write(input_value)
-        docs_list = TextLoader('./file.txt').load()
-        os.remove('./file.txt')
-        docs = filter_complex_metadata(text_splitter.split_documents(docs_list))
+        summary_value = input_value
     elif input_type == "PDF":
-        # with open(input_value, 'rb') as pdf_file:
-            # pdf_reader = PyPDF2.PdfReader(pdf_file)
-            # # Convert the content of each page to a string.
-            # text = ""
-            # for page_num in range(len(pdf_reader.pages)):
-            #     page = pdf_reader.pages[page_num]
-            #     summary_value += page.extract_text()
-        docs_list = PyPDFLoader(input_value, extract_images=True).load()
-        docs = filter_complex_metadata(text_splitter.split_documents(docs_list))
-
+        if vectorstore != None:
+            vectorstore.delete_collection()
+        loader = UnstructuredPDFLoader(file_path=input_value)
+        data = loader.load()
+        chunks = text_splitter.split_documents(data)
+        vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings, collection_name="local-rag")
+        summary_value = MultiQueryRetriever.from_llm(vectorstore.as_retriever(), pipe, prompt=QUERY_PROMPT)
     elif input_type == "url":
+        if vectorstore != None:
+            vectorstore.delete_collection()
         urls_list = input_value.split("\n")
         doc = [WebBaseLoader(url).load() for url in urls_list]
         docs_list = [item for sublist in doc for item in sublist]
-        docs = filter_complex_metadata(text_splitter.split_documents(docs_list))
-
+        chunks = text_splitter.split_documents(docs_list)
+        vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings, collection_name="local-rag")
+        summary_value = MultiQueryRetriever.from_llm(vectorstore.as_retriever(), pipe, prompt=QUERY_PROMPT)
     else:
         print("ERROR: Invalid input")
-    vectorstore = Chroma.from_documents(documents=docs, embedding=embeddings)
-    # simp_vector = vectorstore.similarity_search_with_score(self.msg, k=5)
-    summary_value = vectorstore.as_retriever()
-    # vectorstore.persist() # To sabe the vector in a db
-    return header, summary_value
+    return summary_value
 
 def find_images(search_query,num_results):
     # Construct the Google Images search URL
@@ -105,59 +93,77 @@ def find_images(search_query,num_results):
     soup = BeautifulSoup(response.content, 'html.parser')
 
     # Find all image links in the search results
-    image_links = [link.get('src') for link in soup.find_all('img')]
+    image_links = [link.get('src') for link in soup.find_all('img') if link.get('src').startswith('http')]
     return image_links[:num_results]
 
 
-def images2slides(text, num_images):
-    slides = text.split("===")
-    output = ""
+def images2slides(slides, num_images):
     for num, slide in enumerate(slides):
-        output += slide
-        images = find_images(slide.split('\n')[-1],num_images)
-        for i, image in enumerate(images):
-            output += "![Image{}]({})\n".format(i,image) + '\n ==='
-    return output
+        slide["img_path"] = find_images(slide.get("title_text", ""), num_images)
+        slides[num] = slide
+    return slides
 
 # Function to execute text2ppt
-def text2ppt(header, input_prompt, input_type, input_theme, num_images):
+def text2ppt(input_prompt, input_type, input_theme, num_images, choice):
     # llamada al modelo
-    chain = ({"context": input_prompt, "question": RunnablePassthrough()}
-                    | prompt 
-                    | pipe
-                    | StrOutputParser())
+    template = """
+    {context}
 
-    result = chain.invoke({"query": header})
-    md_text = result
-    md_text =images2slides(md_text, num_images)
-    md_text_list = md_text.split('===')
+    Eres un asistente de modelo de lenguaje de IA que crea PPTs utilizando el formato json.
 
-    f = io.open("text2ppt_input.md", 'w', encoding="utf-8")
-    for i in range(0, len(md_text_list)):
-        data = md_text_list[i].strip() + "\n"
-        f.write(data)
-    f.close()
+    Resuma el texto de entrada y organícelo en una matriz de objetos JSON para que sea adecuado para una presentación de PowerPoint.
+    Determine la cantidad necesaria de objetos JSON (diapositivas) en función de la longitud del texto.
+    Cada punto clave de una diapositiva debe tener un máximo de 10 palabras.
+    Considere un máximo de 5 viñetas por diapositiva.
+    Devuelva la respuesta como una matriz de objetos JSON.
+    El primer elemento de la lista debe ser un objeto JSON para la diapositiva del título. Este es un ejemplo de un objeto json de este tipo:
+    {question}
 
-    if input_theme == 'default':
-        subprocess.call(["./pandoc.exe", "text2ppt_input.md", "-t", "pptx", "-o", "text2ppt_output.pptx"])
+    Asegúrese de que el objeto json sea correcto y válido.
+    No muestre ninguna explicación. Solo necesito la matriz JSON como salida.
+    Solo la matriz. No en formato Markdown.
+
+    
+    """
+    question = """{
+    "id": 1,
+    "title_text": "Título de mi presentación",
+    "subtitle_text": "Subtítulo de mi presentación",
+    "is_title_slide": "yes"
+    }
+    Y aquí está el ejemplo de datos json para diapositivas:
+    {"id": 2, title_text": "Título de la diapositiva 1", "text": ["Viñeta 1", "Viñeta 2, "Viñeta 3"], "img_path": "image"},
+    {"id": 3, title_text": "Título de la diapositiva 2", "text": ["Viñeta 1", "Viñeta 2", "Viñeta 3, "Viñeta 4"], "img_path": "image"}"""
+
+    if choice == "Text":
+        prompt = PromptTemplate.from_template("{topic}")
+        chain = (prompt | model | StrOutputParser())
+        result = chain.invoke({"topic": input_prompt})
     else:
-        ppt_theme = "--reference-doc=./template/"+input_theme+".pptx"
-        subprocess.call(["./pandoc.exe", "text2ppt_input.md", "-t", "pptx", ppt_theme, "-o", "text2ppt_output.pptx"])
+        prompt = ChatPromptTemplate.from_template(template)
+        chain = ({"context": input_prompt, "question": RunnablePassthrough()}
+                        | prompt 
+                        | model
+                        | StrOutputParser())
 
+        result = chain.invoke({"query": question})
+    json_object = json.loads(result)
+    deck = SlideDeck()
+    title_slide_data = json_object[0]
+    slides_data = json_object[1:]
+    slides_data = images2slides(slides_data, num_images)
+    return deck.create_presentation(title_slide_data, slides_data)
 
-def create_ppt(choice, page_choice, thema_select, input_text, pdf_file,num_images, input_url):
+def create_ppt(choice, thema_select, input_text, pdf_file,num_images, input_url):
     if choice == "Text":
         input_ = input_text
     elif choice == "PDF":
         input_ = pdf_file
     elif choice == "url":
         input_ = input_url
-    header, input_ = generate_text2ppt_input_prompt(choice, input_, page_choice)
-    text2ppt(header, input_, choice, thema_select, num_images)
-    prs = Presentation("text2ppt_output.pptx")
-    binary_output = BytesIO()
-    prs.save(binary_output)
-    return "./text2ppt_output.pptx"
+    input_ = generate_text2ppt_input_prompt(choice, input_)
+    prs = text2ppt(input_, choice, thema_select, num_images, choice)
+    return prs
 
 def interface():
     
@@ -171,7 +177,6 @@ def interface():
             
             ppt_file = gr.File(type="filepath", label="Upload PDF", visible=False)
         with gr.Row("Page cuantity selection"):
-            pages = gr.Slider(minimum=2, maximum=30, step=1, value=5, label="Number of PPT pages")
             images = gr.Slider(minimum=1, maximum=5, step=1, value=1, label="Number of images in each PPT page")
         with gr.Row("Input selection"):
             my_order = ['Text', 'PDF', 'url']
@@ -179,7 +184,7 @@ def interface():
             input_text = ''
             input_text = gr.TextArea(lines=5,label="Text", placeholder="Enter TEXT", visible=True)
             input_url = gr.TextArea(lines=5, label="Url", placeholder="Enter URL", visible=False)
-            pdf_file = gr.File(type="filepath", label="Upload PDF", visible=False)   
+            pdf_file = gr.File(type="filepath", label="Upload PDF", visible=False)
         with gr.Row("Output ppt"):
             output_ppt = gr.File(
                 label='Output PPT'
@@ -190,7 +195,7 @@ def interface():
         
     template.change(fn=filter_custom,inputs=[template], outputs=[ppt_file])
     radio_from.change(fn=filter_input,inputs=[radio_from], outputs=[input_text, pdf_file,input_url])
-    confirm.click(fn=create_ppt,inputs=[radio_from,pages,template,input_text, pdf_file, images, input_url],outputs=output_ppt)
+    confirm.click(fn=create_ppt,inputs=[radio_from,template,input_text, pdf_file, images, input_url],outputs=output_ppt)
 
 
 
