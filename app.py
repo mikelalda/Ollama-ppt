@@ -13,7 +13,7 @@ from langchain_community.embeddings.ollama import OllamaEmbeddings
 from langchain.retrievers.multi_query import MultiQueryRetriever
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_community.document_loaders import UnstructuredPDFLoader
-from slide_deck import SlideDeck
+from slide_gen import SlideGen
 
 
 DESCRIPTION = """\
@@ -104,7 +104,7 @@ def images2slides(slides, num_images):
     return slides
 
 # Function to execute text2ppt
-def text2ppt(input_prompt, input_type, input_theme, num_images, choice):
+def text2ppt(input_prompt, input_type, input_theme, num_images, ppt_file):
     # llamada al modelo
     template = """
     {context}
@@ -135,7 +135,7 @@ def text2ppt(input_prompt, input_type, input_theme, num_images, choice):
     {"id": 2, title_text": "Título de la diapositiva 1", "text": ["Viñeta 1", "Viñeta 2, "Viñeta 3"], "img_path": "image"},
     {"id": 3, title_text": "Título de la diapositiva 2", "text": ["Viñeta 1", "Viñeta 2", "Viñeta 3, "Viñeta 4"], "img_path": "image"}"""
 
-    if choice == "Text":
+    if input_type == "Text":
         prompt = PromptTemplate.from_template("{topic}")
         chain = (prompt | model | StrOutputParser())
         result = chain.invoke({"topic": input_prompt})
@@ -147,14 +147,17 @@ def text2ppt(input_prompt, input_type, input_theme, num_images, choice):
                         | StrOutputParser())
 
         result = chain.invoke({"query": question})
-    json_object = json.loads(result)
-    deck = SlideDeck()
+    json_object = json.loads(result.encode('utf8'))
+    if input_theme == 'default':
+        deck = SlideGen()
+    else:
+        deck = SlideGen(ppt_file)
     title_slide_data = json_object[0]
     slides_data = json_object[1:]
     slides_data = images2slides(slides_data, num_images)
     return deck.create_presentation(title_slide_data, slides_data)
 
-def create_ppt(choice, thema_select, input_text, pdf_file,num_images, input_url):
+def create_ppt(choice, thema_select, input_text, pdf_file,num_images, input_url, ppt_file):
     if choice == "Text":
         input_ = input_text
     elif choice == "PDF":
@@ -162,7 +165,7 @@ def create_ppt(choice, thema_select, input_text, pdf_file,num_images, input_url)
     elif choice == "url":
         input_ = input_url
     input_ = generate_text2ppt_input_prompt(choice, input_)
-    prs = text2ppt(input_, choice, thema_select, num_images, choice)
+    prs = text2ppt(input_, choice, thema_select, num_images, ppt_file)
     return prs
 
 def interface():
@@ -171,7 +174,7 @@ def interface():
         with gr.Row("Template selection"):
             template = gr.Dropdown(
                 label="Please select the template you want.",
-                choices=['default', 'yellow', 'gradation_green', 'blue', 'green', 'custom'],
+                choices=['default', 'custom'],
                 value='default'
             )
             
@@ -195,7 +198,7 @@ def interface():
         
     template.change(fn=filter_custom,inputs=[template], outputs=[ppt_file])
     radio_from.change(fn=filter_input,inputs=[radio_from], outputs=[input_text, pdf_file,input_url])
-    confirm.click(fn=create_ppt,inputs=[radio_from,template,input_text, pdf_file, images, input_url],outputs=output_ppt)
+    confirm.click(fn=create_ppt,inputs=[radio_from,template,input_text, pdf_file, images, input_url, ppt_file],outputs=output_ppt)
 
 
 
