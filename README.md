@@ -64,9 +64,10 @@ python app.py
 
 * [ ] Busqueda imagen → Web + ImageBind o crear con IA
   * [X] Web
+    * [ ] mejorar la resolució
   * [ ] ImageBind - Para filtrar imagenes que tengan mas sentido con el texto
   * [ ] Crear imagenes con IA
 * [X] Creacion de ppt →
-  * [ ] Crear en base al template
+  * [X] Crear en base al template
   * [X] Crear con RAG
 * [X] Corregir cuando hay cambios entre RAG y tema

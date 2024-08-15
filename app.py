@@ -97,7 +97,9 @@ def find_images(search_query,num_results):
     return image_links[:num_results]
 
 
-def images2slides(slides, num_images):
+def images2slides(slides, num_images, input_theme):
+    if input_theme != 'default':
+        num_images = 5
     for num, slide in enumerate(slides):
         slide["img_path"] = find_images(slide.get("title_text", ""), num_images)
         slides[num] = slide
@@ -153,10 +155,10 @@ def text2ppt(input_prompt, input_type, input_theme, num_images, ppt_file):
     if input_theme == 'default':
         deck = SlideGen()
     else:
-        deck = SlideGen(ppt_file)
+        deck = SlideGen(template=ppt_file)
     title_slide_data = json_object[0]
     slides_data = json_object[1:]
-    slides_data = images2slides(slides_data, num_images)
+    slides_data = images2slides(slides_data, num_images, input_theme)
     return deck.create_presentation(title_slide_data, slides_data)
 
 def create_ppt(choice, thema_select, input_text, pdf_file,num_images, input_url, ppt_file):

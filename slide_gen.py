@@ -1,4 +1,5 @@
 import os
+import copy
 
 from PIL import Image
 import requests
@@ -11,10 +12,11 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 class SlideGen:
 
     def __init__(self, output_folder="generated", template=None):
+        self.prs_t = Presentation(template)
         self.template = template
-        self.prs = Presentation(template)
+        self.prs = Presentation()
         self.output_folder = output_folder
-
+    
     def add_slide(self, slide_data):
         prs = self.prs
         bullet_slide_layout = prs.slide_layouts[1]
@@ -57,35 +59,44 @@ class SlideGen:
     
     def update_presentation_content(self, slide_data, num_slide):
         # Iterate through all slides
-        base_slides = len(self.prs.slides) - 1
-        slide = self.prs.slides[base_slides%num_slide + 1]
-                
+        prs=self.prs
+        image_num = 0
+        base_slides = len(self.prs_t.slides) - 1
+        select_slide = num_slide%base_slides + 1
+        
+        bullet_slide_layout = prs.slide_layouts[5]
+        slide = prs.slides.add_slide(bullet_slide_layout)
+
+
+        for shp in self.prs_t.slides[select_slide].shapes:
+            el = shp.element
+            newel = copy.deepcopy(el)
+            slide.shapes._spTree.insert_element_before(newel, 'p:extLst')
+
+
         # Update shapes in the slide
         for shape in slide.shapes:
-            # Update text
-            if shape.has_title:
-                if shape.tilte in slide_data:
-                    shape.title = slide_data.get("title_text", "")
+            if shape.name == "title_text":
+                shape.text = slide_data.get("title_text", "")
 
             # Update text
-            elif shape.has_text_frame:
-                if shape.text in slide_data:
-                    shape.text = ''
-                    tf = shape.text
-                    for bullet in slide_data.get("text", []):
+            elif shape.name == 'text':
+                shape.text = ''
+                tf = shape.text_frame
+                for bullet in slide_data.get("text", []):
+                    p = tf.add_paragraph()
+                    p.text = bullet
+                    p.level = 0
+
+                    if "p1" in slide_data:
                         p = tf.add_paragraph()
-                        p.text = bullet
-                        p.level = 0
-
-                        if "p1" in slide_data:
-                            p = tf.add_paragraph()
-                            p.text = slide_data.get("p1")
-                            p.level = 1
+                        p.text = slide_data.get("p1")
+                        p.level = 1
             
             # Update images
-            elif shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+            elif shape.name == 'imagen':
                 if "img_path" in slide_data:
-                    new_image_path = slide_data["img_path"]
+                    new_image_path = slide_data["img_path"][image_num]
                     left, top, width, height = shape.left, shape.top, shape.width, shape.height
                     
                     # Remove the old picture
@@ -101,6 +112,7 @@ class SlideGen:
                         os.remove(temp_path)
                     else:
                         slide.shapes.add_picture(new_image_path, left, top, width, height)
+                    image_num += 1
 
     def add_title_slide(self, title_page_data):
         # title slide
@@ -113,22 +125,42 @@ class SlideGen:
             title.text = title_page_data.get("title_text")
         if "subtitle_text" in title_page_data:
             subtitle.text = title_page_data.get("subtitle_text")
+    
+    def update_presentation_title(self, title_page_data):
+        prs = self.prs
+        title_slide_layout = prs.slide_layouts[0]
+        slide = prs.slides.add_slide(title_slide_layout)
+        template_slide = self.prs_t.slides[0]
+        for shp in template_slide.shapes:
+            el = shp.element
+            newel = copy.deepcopy(el)
+            slide.shapes._spTree.insert_element_before(newel, 'p:extLst')
+
+         # Update shapes in the slide
+        for shape in slide.shapes:
+            if shape.name == "title_text":
+                shape.text = title_page_data.get("title_text")
+            if shape.name == "subtitle_text":
+                shape.text = title_page_data.get("subtitle_text")
 
     def create_presentation(self, title_slide_info, slide_pages_data=[]):
-        try:
-            file_name = title_slide_info.get("title_text").\
-                lower().replace(",", "").replace(" ", "-")
-            file_name += ".pptx"
-            file_name = os.path.join(self.output_folder, file_name)
+        file_name = title_slide_info.get("title_text").\
+            lower().replace(",", "").replace(" ", "-")
+        file_name += ".pptx"
+        file_name = os.path.join(self.output_folder, file_name)
+        if self.template == None:
             self.add_title_slide(title_slide_info)
-            for num_slide, slide_data in enumerate(slide_pages_data):
-                if self.template == None:
-                    self.add_slide(slide_data)
-                else:
-                    self.update_presentation_content(slide_data, num_slide+1)
+        else:
+            self.prs.slide_width = self.prs_t.slide_width
+            self.prs.slide_height = self.prs_t.slide_height
+            self.update_presentation_title(title_slide_info)
+        
+        for num_slide, slide_data in enumerate(slide_pages_data):
+            if self.template == None:
+                self.add_slide(slide_data)
+            else:
+                self.update_presentation_content(slide_data, num_slide)
 
 
-            self.prs.save(file_name)
-            return file_name
-        except Exception as e:
-            raise e
+        self.prs.save(file_name)
+        return file_name
