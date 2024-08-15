@@ -84,11 +84,23 @@ class SlideGen:
             
             # Update images
             elif shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
-                if f"image_{shape.shape_id}" in slide_data:
-                    new_image_path = slide_data[f"image_{shape.shape_id}"]
+                if "img_path" in slide_data:
+                    new_image_path = slide_data["img_path"]
                     left, top, width, height = shape.left, shape.top, shape.width, shape.height
+                    
+                    # Remove the old picture
                     slide.shapes._spTree.remove(shape._element)
-                    slide.shapes.add_picture(new_image_path, left, top, width, height)
+                    
+                    # Add the new picture
+                    if new_image_path.startswith('http'):
+                        response = requests.get(new_image_path)
+                        img = Image.open(BytesIO(response.content))
+                        temp_path = 'temp_image.png'
+                        img.save(temp_path)
+                        slide.shapes.add_picture(temp_path, left, top, width, height)
+                        os.remove(temp_path)
+                    else:
+                        slide.shapes.add_picture(new_image_path, left, top, width, height)
 
     def add_title_slide(self, title_page_data):
         # title slide

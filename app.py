@@ -125,15 +125,17 @@ def text2ppt(input_prompt, input_type, input_theme, num_images, ppt_file):
 
     
     """
-    question = """{
-    "id": 1,
-    "title_text": "Título de mi presentación",
-    "subtitle_text": "Subtítulo de mi presentación",
-    "is_title_slide": "yes"
-    }
-    Y aquí está el ejemplo de datos json para diapositivas:
-    {"id": 2, title_text": "Título de la diapositiva 1", "text": ["Viñeta 1", "Viñeta 2, "Viñeta 3"], "img_path": "image"},
-    {"id": 3, title_text": "Título de la diapositiva 2", "text": ["Viñeta 1", "Viñeta 2", "Viñeta 3, "Viñeta 4"], "img_path": "image"}"""
+    question = """[{
+        "id": 1,
+        "title_text": "Título de mi presentación",
+        "subtitle_text": "Subtítulo de mi presentación",
+        "is_title_slide": "yes"
+        },
+        Y aquí está el ejemplo de datos json para diapositivas:
+        {"id": 2, "title_text": "Título de la diapositiva 1", "text": ["Viñeta 1", "Viñeta 2"]},
+        {"id": 3, "title_text": "Título de la diapositiva 2", "text": ["Viñeta 1", "Viñeta 2", "Viñeta 3"]}
+
+        ...]"""
 
     if input_type == "Text":
         prompt = PromptTemplate.from_template("{topic}")

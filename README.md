@@ -62,9 +62,10 @@ python app.py
 
 ## TODO
 
-* [ ] Busqueda imagen → Web + ImageBind
+* [ ] Busqueda imagen → Web + ImageBind o crear con IA
   * [X] Web
   * [ ] ImageBind - Para filtrar imagenes que tengan mas sentido con el texto
+  * [ ] Crear imagenes con IA
 * [X] Creacion de ppt →
   * [ ] Crear en base al template
   * [X] Crear con RAG

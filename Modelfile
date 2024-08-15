@@ -14,15 +14,16 @@ Cada punto clave de una diapositiva debe tener un máximo de 10 palabras.
 Considere un máximo de 5 viñetas por diapositiva.
 Devuelva la respuesta como una matriz de objetos JSON.
 El primer elemento de la lista debe ser un objeto JSON para la diapositiva del título. Este es un ejemplo de un objeto json de este tipo:
-{
+[{
 "id": 1,
 "title_text": "Título de mi presentación",
 "subtitle_text": "Subtítulo de mi presentación",
 "is_title_slide": "yes"
-}
+},
 Y aquí está el ejemplo de datos json para diapositivas:
-{"id": 2, title_text": "Título de la diapositiva 1", "text": ["Viñeta 1", "Viñeta 2"]},
-{"id": 3, title_text": "Título de la diapositiva 2", "text": ["Viñeta 1", "Viñeta 2", "Viñeta 3"]}
+{"id": 2, "title_text": "Título de la diapositiva 1", "text": ["Viñeta 1", "Viñeta 2"]},
+{"id": 3, "title_text": "Título de la diapositiva 2", "text": ["Viñeta 1", "Viñeta 2", "Viñeta 3"]}
+...]
 
 Asegúrese de que el objeto json sea correcto y válido.
 No muestre ninguna explicación. Solo necesito la matriz JSON como salida.
