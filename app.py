@@ -1,7 +1,7 @@
 import gradio as gr
 import json
-import requests
-from bs4 import BeautifulSoup
+import shutil
+import glob
 from langchain_community.llms import Ollama
 from langchain.schema.output_parser import StrOutputParser
 from langchain.schema.runnable import RunnablePassthrough
@@ -14,6 +14,7 @@ from langchain.retrievers.multi_query import MultiQueryRetriever
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_community.document_loaders import UnstructuredPDFLoader
 from slide_gen import SlideGen
+import imsearch
 
 
 DESCRIPTION = """\
@@ -86,14 +87,12 @@ def generate_text2ppt_input_prompt(input_type, input_value):
         print("ERROR: Invalid input")
     return summary_value
 
-def find_images(search_query,num_results):
+def find_images(search_query, num_results, folder_num):
     # Construct the Google Images search URL
-    search_url = f'https://www.google.com/search?q={search_query}&source=lnms&tbm=isch'
-    response = requests.get(search_url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    imsearch.download(search_query,max_urls=num_results,folder='./images/'+str(folder_num))
 
     # Find all image links in the search results
-    image_links = [link.get('src') for link in soup.find_all('img') if link.get('src').startswith('http')]
+    image_links = glob.glob('./images/'+str(folder_num)+'/*')
     return image_links[:num_results]
 
 
@@ -101,7 +100,7 @@ def images2slides(slides, num_images, input_theme):
     if input_theme != 'default':
         num_images = 5
     for num, slide in enumerate(slides):
-        slide["img_path"] = find_images(slide.get("title_text", ""), num_images)
+        slide["img_path"] = find_images(slide.get("image_description", ""), num_images, num)
         slides[num] = slide
     return slides
 
@@ -113,10 +112,9 @@ def text2ppt(input_prompt, input_type, input_theme, num_images, ppt_file):
 
     Eres un asistente de modelo de lenguaje de IA que crea PPTs utilizando el formato json.
 
-    Resuma el texto de entrada y organícelo en una matriz de objetos JSON para que sea adecuado para una presentación de PowerPoint.
+    Organice el texto de entrada en una matriz de objetos JSON para que sea adecuado para una presentación de PowerPoint.
     Determine la cantidad necesaria de objetos JSON (diapositivas) en función de la longitud del texto.
     Cada punto clave de una diapositiva debe tener un máximo de 10 palabras.
-    Considere un máximo de 5 viñetas por diapositiva.
     Devuelva la respuesta como una matriz de objetos JSON.
     El primer elemento de la lista debe ser un objeto JSON para la diapositiva del título. Este es un ejemplo de un objeto json de este tipo:
     {question}
@@ -170,6 +168,7 @@ def create_ppt(choice, thema_select, input_text, pdf_file,num_images, input_url,
         input_ = input_url
     input_ = generate_text2ppt_input_prompt(choice, input_)
     prs = text2ppt(input_, choice, thema_select, num_images, ppt_file)
+    [shutil.rmtree(i) for i in glob.glob('./images/*')]
     return prs
 
 def interface():
